@@ -3,115 +3,82 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0c0612" />
-  <meta name="description" content="Интерактивное приглашение на свидание: квест, рулетка, скретч-карта, подпись и билет." />
-  <title>Secret Date Mission</title>
+  <meta name="theme-color" content="#120914" />
+  <meta name="description" content="Личное приглашение на свидание." />
+  <title>Приглашение на свидание</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="noise" aria-hidden="true"></div>
-  <div class="aurora" aria-hidden="true">
-    <span></span><span></span><span></span>
-  </div>
-  <div class="cursor-light" id="cursorLight" aria-hidden="true"></div>
+  <div class="background" aria-hidden="true"></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <main class="app">
-    <header class="hud">
-      <div class="logo">
-        <span>💘</span>
-        <strong>DATE OPS</strong>
+    <header class="header">
+      <div class="brand">
+        <span>♡</span>
+        <strong>Date Invite</strong>
       </div>
-      <button class="hud-btn" id="soundBtn" type="button" aria-pressed="false">🔇</button>
+      <button class="reset-btn" id="resetBtn" type="button">Сбросить</button>
     </header>
 
-    <div class="mission-progress">
-      <div class="mission-line"><span id="progressFill"></span></div>
-      <div class="mission-label" id="progressLabel">Mission 0%</div>
+    <div class="progress">
+      <div class="progress-fill" id="progressFill"></div>
     </div>
 
-    <section class="screen active" id="screen-lock">
-      <div class="card glass intro-card">
-        <div class="status-pill">private access</div>
-        <div class="cat-scene">
+    <section class="screen active" id="screen-start">
+      <div class="card start-card">
+        <div class="cat-card" aria-hidden="true">
           <div class="moon"></div>
+          <div class="stars"><i></i><i></i><i></i></div>
           <div class="cat">
-            <div class="ear left"></div>
-            <div class="ear right"></div>
-            <div class="face">
-              <span class="eye"></span><span class="eye"></span>
-              <span class="nose"></span>
-              <span class="smile"></span>
-            </div>
-            <div class="body"></div>
-            <div class="tail"></div>
+            <span class="ear ear-left"></span>
+            <span class="ear ear-right"></span>
+            <span class="head">
+              <i class="eye eye-left"></i>
+              <i class="eye eye-right"></i>
+              <i class="nose"></i>
+              <i class="mouth"></i>
+            </span>
+            <span class="body"></span>
+            <span class="tail"></span>
           </div>
-          <div class="stars"><i></i><i></i><i></i><i></i></div>
         </div>
 
-        <h1>Секретная миссия открыта.</h1>
-        <p class="lead">Введите имя главной героини, чтобы сайт перестал быть обычным и стал личным.</p>
+        <p class="label">личное приглашение</p>
+        <h1>У меня есть один вопрос.</h1>
+        <p class="subtitle">Перед тем как открыть его, напиши своё имя.</p>
 
-        <label class="field hero-input">
+        <label class="field">
           <span>Имя</span>
           <input id="nameInput" type="text" maxlength="24" placeholder="Например: Аружан" autocomplete="name" />
         </label>
 
-        <button class="btn primary wide" id="unlockBtn" type="button">Запустить миссию ✨</button>
-        <p class="tiny">Предупреждение: после запуска отказ технически невозможен.</p>
+        <button class="btn primary wide" id="startBtn" type="button">Открыть</button>
       </div>
     </section>
 
     <section class="screen" id="screen-question">
-      <div class="card glass">
-        <div class="status-pill">main question</div>
-        <div class="message-card">
-          <span class="message-icon">💌</span>
-          <p>Сообщение для <strong class="girlName">тебя</strong>:</p>
+      <div class="card">
+        <p class="label">главный вопрос</p>
+        <h1><span class="guestName">Ты</span>, пойдёшь со мной на свидание?</h1>
+        <p class="subtitle">Кнопка “Нет” здесь есть, но она плохо справляется со своей работой.</p>
+
+        <div class="question-area" id="questionArea">
+          <button class="btn primary yes-btn" id="yesBtn" type="button">Да</button>
+          <button class="btn secondary no-btn" id="noBtn" type="button" tabindex="-1">Нет</button>
+          <p class="hint" id="noHint">попробуй нажать “Нет”</p>
         </div>
-
-        <h1><span class="girlName">Ты</span>, пойдёшь со мной на свидание?</h1>
-        <p class="lead">Тут есть кнопка “Нет”, но она наняла личную охрану.</p>
-
-        <div class="run-zone" id="runZone">
-          <button class="btn primary yes-btn" id="yesBtn" type="button">Да, конечно 💖</button>
-          <button class="btn ghost no-btn" id="noBtn" type="button" tabindex="-1">Нет</button>
-          <p class="taunt" id="taunt">кнопка “Нет” пока делает вид, что она смелая</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="screen" id="screen-accept">
-      <div class="card glass">
-        <button class="back" data-back="question" type="button">←</button>
-        <div class="status-pill">system check</div>
-
-        <div class="scanner">
-          <div class="scan-heart">♥</div>
-          <div class="scan-line"></div>
-        </div>
-
-        <h1>Решение принято.</h1>
-        <p class="lead">Система проверила ответ и признала его лучшим решением дня.</p>
-
-        <div class="checklist">
-          <div><span>✓</span> отказ отклонён</div>
-          <div><span>✓</span> настроение улучшено</div>
-          <div><span>✓</span> свидание активировано</div>
-        </div>
-
-        <button class="btn primary wide" id="acceptNextBtn" type="button">Перейти к плану</button>
       </div>
     </section>
 
     <section class="screen" id="screen-plan">
-      <div class="card glass">
-        <button class="back" data-back="accept" type="button">←</button>
-        <div class="status-pill">date setup</div>
+      <div class="card">
+        <button class="back-btn" data-back="question" type="button">←</button>
 
-        <h1>Собираем идеальный вечер.</h1>
-        <p class="lead">Выбери дату, время и настроение вечера.</p>
+        <p class="label">план вечера</p>
+        <h1>Выбери детали.</h1>
+        <p class="subtitle">Дата, время и место. Всё аккуратно сохранится у меня.</p>
 
         <div class="form-grid">
           <label class="field">
@@ -133,86 +100,66 @@
           </label>
         </div>
 
-        <div class="mood-grid" id="moodGrid">
-          <button class="mini-card" type="button" data-value="Милый и спокойный вечер"><span>🕯️</span><strong>Уютно</strong></button>
-          <button class="mini-card" type="button" data-value="Красивый вечер с вау-атмосферой"><span>🌃</span><strong>Вау</strong></button>
-          <button class="mini-card" type="button" data-value="Смешной вечер без неловкости"><span>😄</span><strong>Весело</strong></button>
-          <button class="mini-card" type="button" data-value="Романтичный вечер как в фильме"><span>🎬</span><strong>Фильм</strong></button>
+        <div class="quick-times" id="quickTimes">
+          <button type="button" data-time="18:00">18:00</button>
+          <button type="button" data-time="19:00">19:00</button>
+          <button type="button" data-time="20:00">20:00</button>
+          <button type="button" data-time="21:00">21:00</button>
         </div>
+
+        <div class="section-title">Место в Алматы</div>
+
+        <div class="place-grid" id="placeGrid">
+          <button class="place" type="button" data-value="Ресторан с видом на Алматы">
+            <span>🌃</span>
+            <strong>С видом</strong>
+            <small>красиво и атмосферно</small>
+          </button>
+          <button class="place" type="button" data-value="Итальянский ресторан">
+            <span>🍝</span>
+            <strong>Итальянский</strong>
+            <small>паста, пицца, уют</small>
+          </button>
+          <button class="place" type="button" data-value="Суши-ресторан">
+            <span>🍣</span>
+            <strong>Суши</strong>
+            <small>спокойно и вкусно</small>
+          </button>
+          <button class="place" type="button" data-value="Кофейня и десерты">
+            <span>☕</span>
+            <strong>Кофейня</strong>
+            <small>лёгкое свидание</small>
+          </button>
+        </div>
+
+        <label class="field custom-field">
+          <span>Или свой вариант</span>
+          <input id="customPlaceInput" type="text" maxlength="70" placeholder="Например: уютное место в центре" />
+        </label>
 
         <p class="error" id="planError"></p>
-        <button class="btn primary wide" id="planNextBtn" type="button">Дальше: рулетка</button>
+        <button class="btn primary wide" id="planNextBtn" type="button">Дальше</button>
       </div>
     </section>
 
-    <section class="screen" id="screen-wheel">
-      <div class="card glass wide-card">
-        <button class="back" data-back="plan" type="button">←</button>
-        <div class="status-pill">restaurant roulette</div>
+    <section class="screen" id="screen-sign">
+      <div class="card">
+        <button class="back-btn" data-back="plan" type="button">←</button>
 
-        <h1>Рулетка выбирает вайб.</h1>
-        <p class="lead">Нажми “крутить”. Если выпало не то — можно вписать свой вариант, без драмы.</p>
+        <p class="label">подпись</p>
+        <h1>Осталась подпись.</h1>
+        <p class="subtitle">Подпиши пальцем или мышкой. Подпись сохранится у меня в Google Drive.</p>
 
-        <div class="wheel-layout">
-          <div class="wheel-wrap">
-            <div class="pointer">▼</div>
-            <canvas id="wheelCanvas" width="360" height="360" aria-label="Рулетка ресторана"></canvas>
-            <button class="spin-btn" id="spinBtn" type="button">SPIN</button>
-          </div>
+        <div class="summary-box" id="summaryBox"></div>
 
-          <div class="wheel-result">
-            <span>Выбор рулетки</span>
-            <strong id="wheelResult">ещё не крутилось</strong>
-            <label class="field">
-              <span>Свой вариант</span>
-              <input id="customRestaurant" type="text" maxlength="70" placeholder="Например: уютное место в центре Алматы" />
-            </label>
-          </div>
+        <div class="signature-box">
+          <canvas id="signatureCanvas"></canvas>
+          <span>подпись здесь</span>
         </div>
 
-        <p class="error" id="wheelError"></p>
-        <button class="btn primary wide" id="wheelNextBtn" type="button">Принять выбор</button>
-      </div>
-    </section>
-
-    <section class="screen" id="screen-scratch">
-      <div class="card glass wide-card">
-        <button class="back" data-back="wheel" type="button">←</button>
-        <div class="status-pill">secret bonus</div>
-
-        <h1>Скретч-карта с бонусом.</h1>
-        <p class="lead">Сотри карточку мышкой или пальцем. Там будет бонус к свиданию.</p>
-
-        <div class="scratch-wrap">
-          <div class="scratch-prize" id="scratchPrize">💐 Цветы + прогулка после ресторана</div>
-          <canvas id="scratchCanvas" width="520" height="220"></canvas>
-        </div>
-
-        <button class="btn ghost wide" id="revealBonusBtn" type="button">Стереть автоматически</button>
-        <p class="error" id="scratchError"></p>
-        <button class="btn primary wide" id="scratchNextBtn" type="button">Бонус принят</button>
-      </div>
-    </section>
-
-    <section class="screen" id="screen-contract">
-      <div class="card glass wide-card">
-        <button class="back" data-back="scratch" type="button">←</button>
-        <div class="status-pill">date contract</div>
-
-        <h1>Финальное условие.</h1>
-        <p class="lead">Подпиши мини-договор свидания. Это не юридически, это мило.</p>
-
-        <div class="contract">
-          <p>Я, <strong class="girlName">главная героиня</strong>, подтверждаю, что согласна на красивый вечер, хороший вайб и минимум одну улыбку.</p>
-          <div class="signature-box">
-            <canvas id="signatureCanvas" width="620" height="210"></canvas>
-            <span>подпись здесь</span>
-          </div>
-        </div>
-
-        <div class="contract-actions">
-          <button class="btn ghost" id="clearSignatureBtn" type="button">Очистить</button>
-          <button class="btn primary" id="signNextBtn" type="button">Подписано</button>
+        <div class="signature-actions">
+          <button class="btn secondary" id="clearSignatureBtn" type="button">Очистить</button>
+          <button class="btn primary" id="submitBtn" type="button">Подтвердить</button>
         </div>
 
         <p class="error" id="signError"></p>
@@ -220,54 +167,59 @@
     </section>
 
     <section class="screen" id="screen-final">
-      <div class="card glass wide-card final-card">
-        <div class="status-pill gold">mission complete</div>
-
-        <h1>Рад, что ты не отказалась.</h1>
-        <p class="lead">Теперь у нас не просто переписка, а официальный план вечера.</p>
+      <div class="card final-card">
+        <p class="label success">готово</p>
+        <h1>Рад, что ты не отказалась 💖</h1>
+        <p class="subtitle">План сохранён. Теперь это официально.</p>
 
         <div class="ticket" id="ticket">
           <div class="ticket-head">
-            <span>SECRET DATE PASS</span>
+            <span>DATE PASS</span>
             <strong>#143</strong>
           </div>
 
-          <div class="ticket-grid">
-            <div><span>Для</span><strong id="finalName">—</strong></div>
-            <div><span>От</span><strong id="finalSender">Айсултан</strong></div>
-            <div><span>Дата</span><strong id="finalDate">—</strong></div>
-            <div><span>Время</span><strong id="finalTime">—</strong></div>
-            <div><span>Настроение</span><strong id="finalMood">—</strong></div>
-            <div><span>Место</span><strong id="finalRestaurant">—</strong></div>
-            <div class="full"><span>Бонус</span><strong id="finalBonus">—</strong></div>
+          <div class="ticket-row">
+            <span>Для</span>
+            <strong id="finalName">—</strong>
+          </div>
+
+          <div class="ticket-row">
+            <span>Дата</span>
+            <strong id="finalDate">—</strong>
+          </div>
+
+          <div class="ticket-row">
+            <span>Время</span>
+            <strong id="finalTime">—</strong>
+          </div>
+
+          <div class="ticket-row">
+            <span>Место</span>
+            <strong id="finalPlace">—</strong>
           </div>
 
           <div class="barcode" aria-hidden="true">
-            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
           </div>
         </div>
 
-        <div class="countdown">
-          <span>До свидания осталось</span>
-          <strong id="countdownText">—</strong>
-        </div>
-
-        <div class="actions">
+        <div class="final-actions">
           <button class="btn primary wide" id="copyBtn" type="button">Скопировать план</button>
-          <button class="btn ghost wide" id="calendarBtn" type="button">Скачать в календарь</button>
-          <button class="btn ghost wide" id="shareBtn" type="button">Поделиться</button>
-          <button class="tiny-btn" id="restartBtn" type="button">начать заново</button>
+          <button class="btn secondary wide" id="calendarBtn" type="button">Добавить в календарь</button>
         </div>
 
-        <p class="tiny" id="statusText" aria-live="polite"></p>
+        <p class="save-status" id="saveStatus">Данные отправлены.</p>
       </div>
     </section>
   </main>
 
-  <noscript>
-    <div class="noscript">Включи JavaScript, иначе магия не работает.</div>
-  </noscript>
-
+  <script>
+    window.DATE_INVITE_CONFIG = {
+      googleScriptUrl: "https://script.google.com/macros/s/AKfycbz9K0F9g05zp9I7VWfmkAzQw8nQoc4YARVTNRhBAe9SRsUZIZwnJTmop6dX-8u7A7yiiA/exec",
+      saveSecret: "aisultan_date_invite_2026_x9K72LmQ",
+      senderName: "Айсултан"
+    };
+  </script>
   <script src="script.js"></script>
 </body>
 </html>
