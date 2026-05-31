@@ -1,252 +1,166 @@
-const CONFIG = {
-  senderName: "Айсултан",
-  defaultName: "Красавица",
-  calendarDurationHours: 2,
+const CONFIG = window.DATE_INVITE_CONFIG || {
+  googleScriptUrl: "",
+  saveSecret: "",
+  senderName: "Айсултан"
 };
 
-const STEPS = ["lock", "question", "accept", "plan", "wheel", "scratch", "contract", "final"];
-
-const RESTAURANTS = [
-  "Итальянский вечер",
-  "Суши и роллы",
-  "Ресторан с видом",
-  "Кофейня и десерты",
-  "Стейк / гриль",
-  "Сюрприз от меня",
-  "Паназиатский вайб",
-  "Прогулка + кофе",
-];
-
-const BONUS_LIST = [
-  "💐 Цветы + прогулка после ресторана",
-  "🍓 Десерт + красивое фото на память",
-  "🌙 Ночная прогулка по Алматы",
-  "🎁 Полный сюрприз от меня",
-  "☕ Кофе после ужина и честный разговор",
-];
-
-const TAUNTS = [
-  "нет? не в этой вселенной",
-  "кнопка убежала, потому что знает правду",
-  "почти, но она быстрее",
-  "отказ заблокирован системой",
-  "ошибка 404: нет не найдено",
-  "судьба сказала нажимать “Да”",
-  "кнопка “Нет” ушла в отпуск",
-];
+const STEPS = ["start", "question", "plan", "sign", "final"];
 
 const state = {
-  step: "lock",
+  step: "start",
   name: "",
   date: "",
   time: "",
-  mood: "",
-  restaurant: "",
-  bonus: "",
+  place: "",
   signed: false,
+  submitted: false
 };
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => document.querySelectorAll(selector);
 
 const el = {
-  cursorLight: $("#cursorLight"),
-  toast: $("#toast"),
-  soundBtn: $("#soundBtn"),
   progressFill: $("#progressFill"),
-  progressLabel: $("#progressLabel"),
+  toast: $("#toast"),
+  resetBtn: $("#resetBtn"),
 
   nameInput: $("#nameInput"),
-  unlockBtn: $("#unlockBtn"),
-  girlNames: $$(".girlName"),
+  startBtn: $("#startBtn"),
+  guestNames: $$(".guestName"),
 
-  runZone: $("#runZone"),
+  questionArea: $("#questionArea"),
   yesBtn: $("#yesBtn"),
   noBtn: $("#noBtn"),
-  taunt: $("#taunt"),
-
-  acceptNextBtn: $("#acceptNextBtn"),
+  noHint: $("#noHint"),
 
   dateInput: $("#dateInput"),
   timeInput: $("#timeInput"),
-  moodCards: $$("#moodGrid .mini-card"),
+  quickTimes: $$("#quickTimes button"),
+  placeButtons: $$("#placeGrid .place"),
+  customPlaceInput: $("#customPlaceInput"),
   planError: $("#planError"),
   planNextBtn: $("#planNextBtn"),
 
-  wheelCanvas: $("#wheelCanvas"),
-  spinBtn: $("#spinBtn"),
-  wheelResult: $("#wheelResult"),
-  customRestaurant: $("#customRestaurant"),
-  wheelError: $("#wheelError"),
-  wheelNextBtn: $("#wheelNextBtn"),
-
-  scratchCanvas: $("#scratchCanvas"),
-  scratchPrize: $("#scratchPrize"),
-  revealBonusBtn: $("#revealBonusBtn"),
-  scratchError: $("#scratchError"),
-  scratchNextBtn: $("#scratchNextBtn"),
-
+  summaryBox: $("#summaryBox"),
   signatureCanvas: $("#signatureCanvas"),
   clearSignatureBtn: $("#clearSignatureBtn"),
-  signNextBtn: $("#signNextBtn"),
+  submitBtn: $("#submitBtn"),
   signError: $("#signError"),
 
   finalName: $("#finalName"),
-  finalSender: $("#finalSender"),
   finalDate: $("#finalDate"),
   finalTime: $("#finalTime"),
-  finalMood: $("#finalMood"),
-  finalRestaurant: $("#finalRestaurant"),
-  finalBonus: $("#finalBonus"),
-  countdownText: $("#countdownText"),
+  finalPlace: $("#finalPlace"),
   copyBtn: $("#copyBtn"),
   calendarBtn: $("#calendarBtn"),
-  shareBtn: $("#shareBtn"),
-  restartBtn: $("#restartBtn"),
-  statusText: $("#statusText"),
+  saveStatus: $("#saveStatus")
 };
 
-let soundEnabled = false;
-let audioContext = null;
-let countdownTimer = null;
-let lastParticle = 0;
-let wheelRotation = 0;
-let spinning = false;
-let scratchReady = false;
-let scratchRevealed = false;
-let isScratching = false;
 let signatureDrawing = false;
 let signatureHasInk = false;
+
+const taunts = [
+  "нет не получится 😼",
+  "почти, но нет",
+  "кнопка ушла",
+  "отказ временно недоступен",
+  "судьба против кнопки “Нет”",
+  "ошибка 404: отказ не найден"
+];
 
 function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function save() {
-  localStorage.setItem("dateInviteUltimateV3", JSON.stringify(state));
+function saveLocal() {
+  localStorage.setItem("dateInviteV6", JSON.stringify(state));
 }
 
-function load() {
+function loadLocal() {
   try {
-    const saved = JSON.parse(localStorage.getItem("dateInviteUltimateV3"));
-    if (!saved) return;
+    const saved = JSON.parse(localStorage.getItem("dateInviteV6"));
+    if (!saved || typeof saved !== "object") return;
     Object.assign(state, saved);
-    if (!STEPS.includes(state.step)) state.step = "lock";
+    if (!STEPS.includes(state.step)) state.step = "start";
   } catch {
-    localStorage.removeItem("dateInviteUltimateV3");
+    localStorage.removeItem("dateInviteV6");
   }
 }
 
-function showToast(text) {
-  el.toast.textContent = text;
+function toast(message) {
+  el.toast.textContent = message;
   el.toast.classList.add("show");
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => el.toast.classList.remove("show"), 2500);
-}
-
-function beep(kind = "soft") {
-  if (!soundEnabled) return;
-
-  try {
-    audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
-    const now = audioContext.currentTime;
-    const notes = kind === "success" ? [523.25, 659.25, 783.99, 1046.5] : [440, 554.37];
-
-    notes.forEach((freq, i) => {
-      const osc = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.0001, now + i * 0.07);
-      gain.gain.exponentialRampToValueAtTime(0.10, now + i * 0.07 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.07 + 0.22);
-      osc.connect(gain);
-      gain.connect(audioContext.destination);
-      osc.start(now + i * 0.07);
-      osc.stop(now + i * 0.07 + 0.25);
-    });
-  } catch {
-    soundEnabled = false;
-  }
-}
-
-function setName(value) {
-  state.name = (value || "").trim() || CONFIG.defaultName;
-  el.girlNames.forEach((node) => {
-    node.textContent = state.name;
-  });
-  save();
-}
-
-function updateProgress() {
-  const index = STEPS.indexOf(state.step);
-  const percent = Math.round((index / (STEPS.length - 1)) * 100);
-  el.progressFill.style.width = `${percent}%`;
-  el.progressLabel.textContent = `Mission ${percent}%`;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => el.toast.classList.remove("show"), 2200);
 }
 
 function show(step) {
   state.step = step;
+
   $$(".screen").forEach((screen) => {
     screen.classList.toggle("active", screen.id === `screen-${step}`);
   });
-  updateProgress();
-  save();
+
+  const index = STEPS.indexOf(step);
+  const percent = index <= 0 ? 0 : (index / (STEPS.length - 1)) * 100;
+  el.progressFill.style.width = `${percent}%`;
+
+  saveLocal();
   window.scrollTo({ top: 0, behavior: "smooth" });
 
-  if (step === "scratch") initScratch();
-  if (step === "contract") resizeSignature();
-  if (step === "final") renderFinal();
+  if (step === "sign") {
+    renderSummary();
+    resizeSignature();
+  }
+
+  if (step === "final") {
+    renderFinal();
+  }
 }
 
-function confetti(amount = 100) {
-  const colors = ["#ff2f8f", "#7d5cff", "#36d9ff", "#ffd166", "#ffffff"];
+function updateName() {
+  const name = state.name || "Ты";
+  el.guestNames.forEach((item) => {
+    item.textContent = name;
+  });
+}
+
+function confetti(amount = 70) {
+  const colors = ["#ff4f9a", "#8b5cff", "#ffd166", "#ffffff"];
+
   for (let i = 0; i < amount; i++) {
     const piece = document.createElement("span");
     piece.className = "confetti";
     piece.style.left = `${Math.random() * 100}vw`;
     piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-    piece.style.animationDelay = `${Math.random() * 0.45}s`;
-    piece.style.animationDuration = `${1.1 + Math.random() * 1.2}s`;
+    piece.style.animationDelay = `${Math.random() * 0.35}s`;
+    piece.style.animationDuration = `${1.05 + Math.random() * 0.9}s`;
     document.body.appendChild(piece);
-    setTimeout(() => piece.remove(), 2800);
+    setTimeout(() => piece.remove(), 2400);
   }
 }
 
-function particle(x, y) {
-  const now = Date.now();
-  if (now - lastParticle < 65) return;
-  lastParticle = now;
-
-  const p = document.createElement("span");
-  p.className = "particle";
-  p.textContent = Math.random() > 0.5 ? "♡" : "♥";
-  p.style.left = `${x}px`;
-  p.style.top = `${y}px`;
-  document.body.appendChild(p);
-  setTimeout(() => p.remove(), 820);
-}
-
 function moveNoButton(x = null, y = null) {
-  const area = el.runZone.getBoundingClientRect();
-  const btn = el.noBtn.getBoundingClientRect();
-  const maxLeft = Math.max(0, area.width - btn.width);
-  const maxTop = Math.max(0, area.height - btn.height);
+  const area = el.questionArea.getBoundingClientRect();
+  const button = el.noBtn.getBoundingClientRect();
+
+  const maxLeft = Math.max(0, area.width - button.width);
+  const maxTop = Math.max(0, area.height - button.height);
 
   let bestLeft = Math.random() * maxLeft;
   let bestTop = Math.random() * maxTop;
   let bestScore = -Infinity;
 
   if (x !== null && y !== null) {
-    for (let i = 0; i < 130; i++) {
+    for (let i = 0; i < 100; i++) {
       const left = Math.random() * maxLeft;
       const top = Math.random() * maxTop;
-      const cx = area.left + left + btn.width / 2;
-      const cy = area.top + top + btn.height / 2;
-      const dist = Math.hypot(cx - x, cy - y);
-      const centerBonus = 40 - Math.hypot(left - maxLeft / 2, top - maxTop / 2) * 0.05;
-      const score = dist + centerBonus;
+      const centerX = area.left + left + button.width / 2;
+      const centerY = area.top + top + button.height / 2;
+      const distance = Math.hypot(centerX - x, centerY - y);
+      const score = distance - Math.hypot(left - maxLeft / 2, top - maxTop / 2) * 0.04;
+
       if (score > bestScore) {
         bestScore = score;
         bestLeft = left;
@@ -260,352 +174,29 @@ function moveNoButton(x = null, y = null) {
   el.noBtn.classList.remove("shake");
   void el.noBtn.offsetWidth;
   el.noBtn.classList.add("shake");
-  el.taunt.textContent = TAUNTS[Math.floor(Math.random() * TAUNTS.length)];
+  el.noHint.textContent = taunts[Math.floor(Math.random() * taunts.length)];
 }
 
 function protectNo(x, y) {
   if (state.step !== "question") return;
+
   const rect = el.noBtn.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  const radius = window.matchMedia("(max-width: 520px)").matches ? 260 : 220;
-  if (Math.hypot(cx - x, cy - y) < radius) moveNoButton(x, y);
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const radius = window.matchMedia("(max-width: 560px)").matches ? 245 : 205;
+
+  if (Math.hypot(centerX - x, centerY - y) < radius) {
+    moveNoButton(x, y);
+  }
 }
 
-function blockNo(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  const point = e.touches?.[0] || e.changedTouches?.[0] || e;
+function blockNo(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const point = event.touches?.[0] || event.changedTouches?.[0] || event;
   moveNoButton(point.clientX || null, point.clientY || null);
-  showToast("Отказ отклонён. Попробуй кнопку красивее 😼");
-  beep("soft");
-}
-
-function formatDate(dateString) {
-  const date = new Date(`${dateString}T00:00:00`);
-  return date.toLocaleDateString("ru-RU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function drawWheel() {
-  const canvas = el.wheelCanvas;
-  const ctx = canvas.getContext("2d");
-  const size = canvas.width;
-  const cx = size / 2;
-  const cy = size / 2;
-  const radius = size / 2 - 10;
-  const arc = (Math.PI * 2) / RESTAURANTS.length;
-  const colors = ["#ff2f8f", "#7d5cff", "#36d9ff", "#ffd166", "#ff7abb", "#6dffb3", "#b576ff", "#ff8f5a"];
-
-  ctx.clearRect(0, 0, size, size);
-
-  RESTAURANTS.forEach((label, i) => {
-    const angle = i * arc - Math.PI / 2;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, radius, angle, angle + arc);
-    ctx.closePath();
-    ctx.fillStyle = colors[i % colors.length];
-    ctx.fill();
-
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle + arc / 2);
-    ctx.textAlign = "right";
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 15px system-ui, Arial";
-    ctx.shadowColor = "rgba(0,0,0,.35)";
-    ctx.shadowBlur = 6;
-    const short = label.length > 16 ? label.slice(0, 16) + "…" : label;
-    ctx.fillText(short, radius - 18, 5);
-    ctx.restore();
-  });
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, 56, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(12, 6, 18, .92)";
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.lineWidth = 10;
-  ctx.strokeStyle = "rgba(255,255,255,.28)";
-  ctx.stroke();
-}
-
-function spinWheel() {
-  if (spinning) return;
-
-  spinning = true;
-  el.wheelError.textContent = "";
-  el.spinBtn.textContent = "WAIT";
-
-  const index = Math.floor(Math.random() * RESTAURANTS.length);
-  const segment = 360 / RESTAURANTS.length;
-  const targetAngle = 360 - (index * segment + segment / 2);
-  const spins = 5 + Math.floor(Math.random() * 3);
-
-  wheelRotation += spins * 360 + targetAngle;
-  el.wheelCanvas.style.transform = `rotate(${wheelRotation}deg)`;
-
-  setTimeout(() => {
-    state.restaurant = RESTAURANTS[index];
-    el.wheelResult.textContent = state.restaurant;
-    el.spinBtn.textContent = "SPIN";
-    spinning = false;
-    save();
-    beep("success");
-    confetti(60);
-  }, 3300);
-}
-
-function initScratch() {
-  if (scratchReady) return;
-  scratchReady = true;
-
-  if (!state.bonus) {
-    state.bonus = BONUS_LIST[Math.floor(Math.random() * BONUS_LIST.length)];
-    save();
-  }
-
-  el.scratchPrize.textContent = state.bonus;
-
-  const canvas = el.scratchCanvas;
-  const ctx = canvas.getContext("2d");
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.floor(rect.width * devicePixelRatio);
-  canvas.height = Math.floor(rect.height * devicePixelRatio);
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-
-  const w = rect.width;
-  const h = rect.height;
-
-  const gradient = ctx.createLinearGradient(0, 0, w, h);
-  gradient.addColorStop(0, "#c0c4d6");
-  gradient.addColorStop(0.45, "#f1f3f8");
-  gradient.addColorStop(1, "#9ca3b8");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.fillStyle = "rgba(12, 6, 18, 0.75)";
-  ctx.font = "900 28px system-ui, Arial";
-  ctx.textAlign = "center";
-  ctx.fillText("СОТРИ МЕНЯ", w / 2, h / 2 - 8);
-
-  ctx.font = "700 15px system-ui, Arial";
-  ctx.fillText("мышкой или пальцем", w / 2, h / 2 + 24);
-
-  ctx.globalCompositeOperation = "destination-out";
-}
-
-function scratchAt(x, y) {
-  const canvas = el.scratchCanvas;
-  const ctx = canvas.getContext("2d");
-  const rect = canvas.getBoundingClientRect();
-  ctx.beginPath();
-  ctx.arc(x - rect.left, y - rect.top, 28, 0, Math.PI * 2);
-  ctx.fill();
-
-  checkScratchProgress();
-}
-
-function revealScratch() {
-  const canvas = el.scratchCanvas;
-  const ctx = canvas.getContext("2d");
-  const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  scratchRevealed = true;
-  el.scratchError.textContent = "";
-  beep("success");
-  confetti(60);
-}
-
-function checkScratchProgress() {
-  const canvas = el.scratchCanvas;
-  const ctx = canvas.getContext("2d");
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let cleared = 0;
-  for (let i = 3; i < data.length; i += 40) {
-    if (data[i] === 0) cleared++;
-  }
-  const ratio = cleared / (data.length / 40);
-  if (ratio > 0.42 && !scratchRevealed) {
-    scratchRevealed = true;
-    el.scratchError.textContent = "";
-    beep("success");
-    confetti(50);
-  }
-}
-
-function resizeSignature() {
-  const canvas = el.signatureCanvas;
-  const rect = canvas.getBoundingClientRect();
-  const old = document.createElement("canvas");
-  old.width = canvas.width;
-  old.height = canvas.height;
-  old.getContext("2d").drawImage(canvas, 0, 0);
-
-  canvas.width = Math.floor(rect.width * devicePixelRatio);
-  canvas.height = Math.floor(rect.height * devicePixelRatio);
-
-  const ctx = canvas.getContext("2d");
-  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-  ctx.fillStyle = "rgba(255,255,255,0)";
-  ctx.fillRect(0, 0, rect.width, rect.height);
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "#140817";
-}
-
-function signaturePoint(e) {
-  const rect = el.signatureCanvas.getBoundingClientRect();
-  const point = e.touches?.[0] || e;
-  return { x: point.clientX - rect.left, y: point.clientY - rect.top };
-}
-
-function startSignature(e) {
-  e.preventDefault();
-  signatureDrawing = true;
-  signatureHasInk = true;
-  const ctx = el.signatureCanvas.getContext("2d");
-  const p = signaturePoint(e);
-  ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  el.signError.textContent = "";
-}
-
-function drawSignature(e) {
-  if (!signatureDrawing) return;
-  e.preventDefault();
-  const ctx = el.signatureCanvas.getContext("2d");
-  const p = signaturePoint(e);
-  ctx.lineTo(p.x, p.y);
-  ctx.stroke();
-}
-
-function stopSignature() {
-  signatureDrawing = false;
-}
-
-function clearSignature() {
-  const canvas = el.signatureCanvas;
-  const ctx = canvas.getContext("2d");
-  const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
-  signatureHasInk = false;
-}
-
-function renderFinal() {
-  el.finalName.textContent = state.name || CONFIG.defaultName;
-  el.finalSender.textContent = CONFIG.senderName;
-  el.finalDate.textContent = formatDate(state.date);
-  el.finalTime.textContent = state.time;
-  el.finalMood.textContent = state.mood;
-  el.finalRestaurant.textContent = state.restaurant;
-  el.finalBonus.textContent = state.bonus;
-
-  updateCountdown();
-  clearInterval(countdownTimer);
-  countdownTimer = setInterval(updateCountdown, 1000);
-}
-
-function getTargetDate() {
-  return new Date(`${state.date}T${state.time}:00`);
-}
-
-function updateCountdown() {
-  if (!state.date || !state.time) {
-    el.countdownText.textContent = "—";
-    return;
-  }
-
-  const diff = getTargetDate().getTime() - Date.now();
-  if (diff <= 0) {
-    el.countdownText.textContent = "уже пора идти ✨";
-    return;
-  }
-
-  const total = Math.floor(diff / 1000);
-  const d = Math.floor(total / 86400);
-  const h = Math.floor((total % 86400) / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  el.countdownText.textContent = `${d} д. ${h} ч. ${m} мин. ${s} сек.`;
-}
-
-function planText() {
-  return [
-    "Официальный план свидания 💖",
-    `Для: ${state.name || CONFIG.defaultName}`,
-    `От: ${CONFIG.senderName}`,
-    `Дата: ${formatDate(state.date)}`,
-    `Время: ${state.time}`,
-    `Настроение: ${state.mood}`,
-    `Место: ${state.restaurant}`,
-    `Бонус: ${state.bonus}`,
-  ].join("\n");
-}
-
-async function copyPlan() {
-  const text = planText();
-  try {
-    await navigator.clipboard.writeText(text);
-    el.statusText.textContent = "План скопирован. Можно отправить ей в чат.";
-    showToast("План скопирован");
-  } catch {
-    el.statusText.textContent = text;
-  }
-}
-
-function toICSDate(date) {
-  return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
-}
-
-function downloadCalendar() {
-  const start = getTargetDate();
-  const end = new Date(start.getTime() + CONFIG.calendarDurationHours * 60 * 60 * 1000);
-
-  const ics = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Secret Date Mission//RU",
-    "BEGIN:VEVENT",
-    `UID:${Date.now()}@secret-date-mission.local`,
-    `DTSTAMP:${toICSDate(new Date())}`,
-    `DTSTART:${toICSDate(start)}`,
-    `DTEND:${toICSDate(end)}`,
-    `SUMMARY:Свидание с ${state.name || CONFIG.defaultName}`,
-    `DESCRIPTION:${planText().replace(/\n/g, "\\n")}`,
-    "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n");
-
-  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "secret-date-mission.ics";
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-  showToast("Календарь скачан");
-}
-
-async function sharePlan() {
-  const text = planText();
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: "Secret Date Mission", text });
-      return;
-    } catch {}
-  }
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+  toast("Нет не принимается 😄");
 }
 
 function validatePlan() {
@@ -617,7 +208,7 @@ function validatePlan() {
   }
 
   if (el.dateInput.value < todayISO()) {
-    el.planError.textContent = "Прошлая дата не подходит. Мы не в машине времени.";
+    el.planError.textContent = "Прошлую дату выбрать нельзя.";
     return false;
   }
 
@@ -626,209 +217,404 @@ function validatePlan() {
     return false;
   }
 
-  const mood = $(".mini-card.selected")?.dataset.value;
-  if (!mood) {
-    el.planError.textContent = "Выбери настроение вечера.";
+  const customPlace = el.customPlaceInput.value.trim();
+
+  if (customPlace) {
+    state.place = customPlace;
+  }
+
+  if (!state.place) {
+    el.planError.textContent = "Выбери место или напиши свой вариант.";
     return false;
   }
 
   state.date = el.dateInput.value;
   state.time = el.timeInput.value;
-  state.mood = mood;
-  save();
+
+  saveLocal();
   return true;
 }
 
-el.soundBtn.addEventListener("click", () => {
-  soundEnabled = !soundEnabled;
-  el.soundBtn.textContent = soundEnabled ? "🔊" : "🔇";
-  el.soundBtn.setAttribute("aria-pressed", String(soundEnabled));
-  beep("soft");
-});
+function renderSummary() {
+  el.summaryBox.innerHTML = `
+    <div><strong>Имя:</strong> ${escapeHtml(state.name || "Красавица")}</div>
+    <div><strong>Дата:</strong> ${escapeHtml(formatDate(state.date))}</div>
+    <div><strong>Время:</strong> ${escapeHtml(state.time)}</div>
+    <div><strong>Место:</strong> ${escapeHtml(state.place)}</div>
+  `;
+}
 
-el.unlockBtn.addEventListener("click", () => {
-  setName(el.nameInput.value);
-  show("question");
-  beep("soft");
-});
+function resizeSignature() {
+  const canvas = el.signatureCanvas;
+  const rect = canvas.getBoundingClientRect();
 
-el.nameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") el.unlockBtn.click();
-});
+  canvas.width = Math.floor(rect.width * devicePixelRatio);
+  canvas.height = Math.floor(rect.height * devicePixelRatio);
 
-el.yesBtn.addEventListener("click", () => {
-  setName(el.nameInput.value || state.name);
-  confetti(110);
-  beep("success");
-  show("accept");
-});
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#120914";
+}
 
-el.acceptNextBtn.addEventListener("click", () => show("plan"));
+function getPointerPosition(event) {
+  const point = event.touches?.[0] || event;
+  const rect = el.signatureCanvas.getBoundingClientRect();
 
-el.moodCards.forEach((card) => {
-  card.addEventListener("click", () => {
-    el.moodCards.forEach((c) => c.classList.remove("selected"));
-    card.classList.add("selected");
-    el.planError.textContent = "";
-    beep("soft");
+  return {
+    x: point.clientX - rect.left,
+    y: point.clientY - rect.top
+  };
+}
+
+function startSignature(event) {
+  event.preventDefault();
+
+  signatureDrawing = true;
+  signatureHasInk = true;
+  el.signError.textContent = "";
+
+  const point = getPointerPosition(event);
+  const ctx = el.signatureCanvas.getContext("2d");
+
+  ctx.beginPath();
+  ctx.moveTo(point.x, point.y);
+}
+
+function drawSignature(event) {
+  if (!signatureDrawing) return;
+
+  event.preventDefault();
+
+  const point = getPointerPosition(event);
+  const ctx = el.signatureCanvas.getContext("2d");
+
+  ctx.lineTo(point.x, point.y);
+  ctx.stroke();
+}
+
+function stopSignature() {
+  signatureDrawing = false;
+}
+
+function clearSignature() {
+  const canvas = el.signatureCanvas;
+  const rect = canvas.getBoundingClientRect();
+  const ctx = canvas.getContext("2d");
+
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  signatureHasInk = false;
+  el.signError.textContent = "";
+}
+
+function getSignatureDataUrl() {
+  return el.signatureCanvas.toDataURL("image/png");
+}
+
+async function submitToGoogleSheets() {
+  const payload = {
+    secret: CONFIG.saveSecret,
+    name: state.name || "",
+    message: "Согласилась на свидание",
+    date: state.date || "",
+    time: state.time || "",
+    mood: "clean v6",
+    details: [],
+    place: state.place || "",
+    bonus: "",
+    smile: "",
+    signatureDataUrl: getSignatureDataUrl(),
+    userAgent: navigator.userAgent,
+    pageUrl: location.href,
+    sentAt: new Date().toISOString()
+  };
+
+  if (!CONFIG.googleScriptUrl) {
+    throw new Error("Google Script URL не указан");
+  }
+
+  await fetch(CONFIG.googleScriptUrl, {
+    method: "POST",
+    mode: "no-cors",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify(payload)
   });
-});
 
-el.planNextBtn.addEventListener("click", () => {
-  if (!validatePlan()) return;
-  show("wheel");
-});
+  state.submitted = true;
+  saveLocal();
+}
 
-el.spinBtn.addEventListener("click", spinWheel);
+function renderFinal() {
+  el.finalName.textContent = state.name || "Красавица";
+  el.finalDate.textContent = formatDate(state.date);
+  el.finalTime.textContent = state.time;
+  el.finalPlace.textContent = state.place;
+  el.saveStatus.textContent = state.submitted
+    ? "Данные отправлены и сохранены."
+    : "Данные отправляются...";
+}
 
-el.customRestaurant.addEventListener("input", () => {
-  if (el.customRestaurant.value.trim()) {
-    state.restaurant = el.customRestaurant.value.trim();
-    el.wheelResult.textContent = state.restaurant;
-    el.wheelError.textContent = "";
-    save();
+function formatDate(dateString) {
+  const date = new Date(`${dateString}T00:00:00`);
+  return date.toLocaleDateString("ru-RU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+}
+
+function planText() {
+  return [
+    "План свидания 💖",
+    `Имя: ${state.name || "Красавица"}`,
+    `Дата: ${formatDate(state.date)}`,
+    `Время: ${state.time}`,
+    `Место: ${state.place}`
+  ].join("\n");
+}
+
+async function copyPlan() {
+  try {
+    await navigator.clipboard.writeText(planText());
+    toast("План скопирован");
+  } catch {
+    toast("Не получилось скопировать");
   }
-});
+}
 
-el.wheelNextBtn.addEventListener("click", () => {
-  const custom = el.customRestaurant.value.trim();
-  if (custom) state.restaurant = custom;
+function toICSDate(date) {
+  return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+}
 
-  if (!state.restaurant) {
-    el.wheelError.textContent = "Сначала крути рулетку или напиши свой вариант.";
-    return;
-  }
+function downloadCalendar() {
+  const start = new Date(`${state.date}T${state.time}:00`);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
 
-  save();
-  show("scratch");
-});
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Date Invite V6//RU",
+    "BEGIN:VEVENT",
+    `UID:${Date.now()}@date-invite-v6.local`,
+    `DTSTAMP:${toICSDate(new Date())}`,
+    `DTSTART:${toICSDate(start)}`,
+    `DTEND:${toICSDate(end)}`,
+    `SUMMARY:Свидание с ${state.name || "Красавица"}`,
+    `LOCATION:${state.place}, Алматы`,
+    `DESCRIPTION:${planText().replace(/\n/g, "\\n")}`,
+    "END:VEVENT",
+    "END:VCALENDAR"
+  ].join("\r\n");
 
-el.revealBonusBtn.addEventListener("click", revealScratch);
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
 
-el.scratchNextBtn.addEventListener("click", () => {
-  if (!scratchRevealed) {
-    el.scratchError.textContent = "Сначала сотри карточку. Иначе где магия?";
-    return;
-  }
-  show("contract");
-});
+  link.href = url;
+  link.download = "date-plan.ics";
+  link.click();
 
-el.scratchCanvas.addEventListener("pointerdown", (e) => {
-  isScratching = true;
-  scratchAt(e.clientX, e.clientY);
-});
-el.scratchCanvas.addEventListener("pointermove", (e) => {
-  if (isScratching) scratchAt(e.clientX, e.clientY);
-});
-document.addEventListener("pointerup", () => {
-  isScratching = false;
-});
+  URL.revokeObjectURL(url);
+}
 
-el.signatureCanvas.addEventListener("pointerdown", startSignature);
-el.signatureCanvas.addEventListener("pointermove", drawSignature);
-document.addEventListener("pointerup", stopSignature);
-el.signatureCanvas.addEventListener("touchstart", startSignature, { passive: false });
-el.signatureCanvas.addEventListener("touchmove", drawSignature, { passive: false });
-document.addEventListener("touchend", stopSignature);
+function resetAll() {
+  localStorage.removeItem("dateInviteV6");
 
-el.clearSignatureBtn.addEventListener("click", clearSignature);
-
-el.signNextBtn.addEventListener("click", () => {
-  if (!signatureHasInk) {
-    el.signError.textContent = "Нужна подпись. Хотя бы сердечко нарисуй.";
-    return;
-  }
-  state.signed = true;
-  save();
-  confetti(150);
-  beep("success");
-  show("final");
-});
-
-el.copyBtn.addEventListener("click", copyPlan);
-el.calendarBtn.addEventListener("click", downloadCalendar);
-el.shareBtn.addEventListener("click", sharePlan);
-
-el.restartBtn.addEventListener("click", () => {
-  localStorage.removeItem("dateInviteUltimateV3");
   Object.assign(state, {
-    step: "lock",
+    step: "start",
     name: "",
     date: todayISO(),
     time: "",
-    mood: "",
-    restaurant: "",
-    bonus: "",
+    place: "",
     signed: false,
+    submitted: false
   });
 
   el.nameInput.value = "";
   el.dateInput.value = todayISO();
   el.timeInput.value = "";
-  el.customRestaurant.value = "";
-  el.wheelResult.textContent = "ещё не крутилось";
-  el.statusText.textContent = "";
+  el.customPlaceInput.value = "";
   el.planError.textContent = "";
-  el.wheelError.textContent = "";
-  el.scratchError.textContent = "";
   el.signError.textContent = "";
+  el.placeButtons.forEach((button) => button.classList.remove("active"));
+  el.quickTimes.forEach((button) => button.classList.remove("active"));
 
-  el.moodCards.forEach((c) => c.classList.remove("selected"));
   clearSignature();
-  scratchReady = false;
-  scratchRevealed = false;
+  updateName();
+  show("start");
+}
 
-  show("lock");
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+el.startBtn.addEventListener("click", () => {
+  state.name = el.nameInput.value.trim() || "Красавица";
+  updateName();
+  saveLocal();
+  show("question");
 });
 
-$$("[data-back]").forEach((button) => {
-  button.addEventListener("click", () => show(button.dataset.back));
+el.nameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    el.startBtn.click();
+  }
 });
 
-document.addEventListener("mousemove", (e) => {
-  el.cursorLight.style.opacity = "1";
-  el.cursorLight.style.left = `${e.clientX}px`;
-  el.cursorLight.style.top = `${e.clientY}px`;
-  particle(e.clientX, e.clientY);
-  protectNo(e.clientX, e.clientY);
+el.yesBtn.addEventListener("click", () => {
+  confetti(90);
+  show("plan");
 });
-
-document.addEventListener("pointerdown", (e) => {
-  if (state.step !== "question") return;
-  const rect = el.noBtn.getBoundingClientRect();
-  const inside = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-  if (inside) blockNo(e);
-}, true);
 
 el.noBtn.addEventListener("click", blockNo);
 el.noBtn.addEventListener("mousedown", blockNo);
-el.noBtn.addEventListener("mouseenter", (e) => moveNoButton(e.clientX, e.clientY));
+el.noBtn.addEventListener("mouseenter", (event) => moveNoButton(event.clientX, event.clientY));
+
+document.addEventListener("mousemove", (event) => {
+  protectNo(event.clientX, event.clientY);
+});
+
+document.addEventListener("pointerdown", (event) => {
+  if (state.step !== "question") return;
+
+  const rect = el.noBtn.getBoundingClientRect();
+  const inside =
+    event.clientX >= rect.left &&
+    event.clientX <= rect.right &&
+    event.clientY >= rect.top &&
+    event.clientY <= rect.bottom;
+
+  if (inside) {
+    blockNo(event);
+  }
+}, true);
+
+el.quickTimes.forEach((button) => {
+  button.addEventListener("click", () => {
+    el.quickTimes.forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+    el.timeInput.value = button.dataset.time;
+  });
+});
+
+el.timeInput.addEventListener("change", () => {
+  el.quickTimes.forEach((button) => {
+    button.classList.toggle("active", button.dataset.time === el.timeInput.value);
+  });
+});
+
+el.placeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    el.placeButtons.forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+    el.customPlaceInput.value = "";
+    state.place = button.dataset.value;
+    el.planError.textContent = "";
+    saveLocal();
+  });
+});
+
+el.customPlaceInput.addEventListener("input", () => {
+  const value = el.customPlaceInput.value.trim();
+
+  if (value) {
+    el.placeButtons.forEach((button) => button.classList.remove("active"));
+    state.place = value;
+    saveLocal();
+  }
+});
+
+el.planNextBtn.addEventListener("click", () => {
+  if (!validatePlan()) return;
+  show("sign");
+});
+
+el.clearSignatureBtn.addEventListener("click", clearSignature);
+
+el.signatureCanvas.addEventListener("pointerdown", startSignature);
+el.signatureCanvas.addEventListener("pointermove", drawSignature);
+document.addEventListener("pointerup", stopSignature);
+
+el.signatureCanvas.addEventListener("touchstart", startSignature, { passive: false });
+el.signatureCanvas.addEventListener("touchmove", drawSignature, { passive: false });
+document.addEventListener("touchend", stopSignature);
+
+el.submitBtn.addEventListener("click", async () => {
+  if (!signatureHasInk) {
+    el.signError.textContent = "Нужна подпись. Можно просто сердечко.";
+    return;
+  }
+
+  el.submitBtn.disabled = true;
+  el.submitBtn.textContent = "Сохраняю...";
+
+  state.signed = true;
+  saveLocal();
+
+  try {
+    await submitToGoogleSheets();
+    confetti(100);
+    show("final");
+    renderFinal();
+  } catch (error) {
+    el.signError.textContent = "Не получилось отправить данные. Проверь интернет или URL.";
+    console.error(error);
+  } finally {
+    el.submitBtn.disabled = false;
+    el.submitBtn.textContent = "Подтвердить";
+  }
+});
+
+el.copyBtn.addEventListener("click", copyPlan);
+el.calendarBtn.addEventListener("click", downloadCalendar);
+el.resetBtn.addEventListener("click", resetAll);
+
+$$("[data-back]").forEach((button) => {
+  button.addEventListener("click", () => {
+    show(button.dataset.back);
+  });
+});
 
 window.addEventListener("resize", () => {
-  drawWheel();
-  if (state.step === "contract") resizeSignature();
+  if (state.step === "sign") {
+    resizeSignature();
+  }
 });
 
 el.dateInput.min = todayISO();
 el.dateInput.value = todayISO();
-drawWheel();
 
-load();
-setName(state.name);
+loadLocal();
+
+if (!state.date) {
+  state.date = todayISO();
+}
+
 el.nameInput.value = state.name || "";
 el.dateInput.min = todayISO();
-el.dateInput.value = state.date || todayISO();
+el.dateInput.value = state.date;
 el.timeInput.value = state.time || "";
-el.finalSender.textContent = CONFIG.senderName;
+el.customPlaceInput.value = state.place && ![...el.placeButtons].some((button) => button.dataset.value === state.place)
+  ? state.place
+  : "";
 
-if (state.mood) {
-  el.moodCards.forEach((card) => card.classList.toggle("selected", card.dataset.value === state.mood));
-}
+el.quickTimes.forEach((button) => {
+  button.classList.toggle("active", button.dataset.time === state.time);
+});
 
-if (state.restaurant) {
-  el.wheelResult.textContent = state.restaurant;
-}
+el.placeButtons.forEach((button) => {
+  button.classList.toggle("active", button.dataset.value === state.place);
+});
 
-if (!state.date) state.date = todayISO();
-
-show(state.step || "lock");
+updateName();
+show(state.step || "start");
