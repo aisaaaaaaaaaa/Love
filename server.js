@@ -11,20 +11,20 @@ app.use(express.json());
 // Раздаём статические файлы из папки frontend
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Данные из переменных окружения (настрой на Render)
+// Переменные окружения (установи на Render)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
 if (!accountSid || !authToken || !twilioPhone) {
-  console.error('❌ Ошибка: добавь переменные окружения (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)');
+  console.error('❌ Ошибка: не хватает переменных окружения Twilio');
   process.exit(1);
 }
 
 const client = twilio(accountSid, authToken);
 const codeStore = new Map();
 
-// API: отправка SMS
+// Отправка SMS
 app.post('/send-code', async (req, res) => {
   const { phone } = req.body;
   if (!phone || !phone.match(/^\+\d{10,15}$/)) {
@@ -38,17 +38,17 @@ app.post('/send-code', async (req, res) => {
     await client.messages.create({
       body: `🔐 Ваш код для входа: ${code}`,
       from: twilioPhone,
-      to: phone
+      to: phone,
     });
     console.log(`✅ Код ${code} отправлен на ${phone}`);
     res.json({ ok: true });
   } catch (err) {
     console.error('Twilio error:', err);
-    res.status(500).json({ ok: false, error: 'Ошибка отправки SMS. Проверь Twilio баланс/номер.' });
+    res.status(500).json({ ok: false, error: 'Ошибка отправки SMS' });
   }
 });
 
-// API: проверка кода
+// Проверка кода
 app.post('/verify-code', (req, res) => {
   const { phone, code } = req.body;
   const record = codeStore.get(phone);
@@ -67,7 +67,7 @@ app.post('/verify-code', (req, res) => {
   }
 });
 
-// Все остальные GET-запросы отдаём index.html (форму регистрации)
+// Все GET-запросы (кроме API) отдаём index.html (форму регистрации)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
