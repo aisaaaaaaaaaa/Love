@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Регистрация по SMS</title>
   <style>
     * {
@@ -10,17 +10,15 @@
       padding: 0;
       box-sizing: border-box;
     }
-
     body {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      font-family: 'Segoe UI', system-ui, -apple-system, 'Inter', sans-serif;
+      font-family: 'Segoe UI', system-ui, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
     }
-
     .card {
       background: rgba(255,255,255,0.97);
       border-radius: 40px;
@@ -28,10 +26,7 @@
       width: 100%;
       padding: 32px 28px;
       box-shadow: 0 25px 45px rgba(0,0,0,0.2);
-      backdrop-filter: blur(2px);
-      transition: all 0.3s ease;
     }
-
     .progress-bar {
       width: 100%;
       height: 6px;
@@ -40,14 +35,12 @@
       margin-bottom: 32px;
       overflow: hidden;
     }
-
     .progress-fill {
       width: 0%;
       height: 100%;
       background: linear-gradient(90deg, #667eea, #764ba2);
-      transition: width 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+      transition: width 0.4s ease;
     }
-
     h2 {
       font-size: 28px;
       font-weight: 700;
@@ -57,27 +50,22 @@
       background-clip: text;
       color: transparent;
     }
-
     .sub {
       color: #666;
       margin-bottom: 28px;
       font-size: 14px;
     }
-
     .step {
       display: none;
       animation: fadeIn 0.4s ease;
     }
-
     .step.active {
       display: block;
     }
-
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
     .phone-input-wrapper {
       display: flex;
       align-items: center;
@@ -106,7 +94,6 @@
       padding: 16px 0;
       outline: none;
     }
-
     .otp-group {
       display: flex;
       gap: 12px;
@@ -122,7 +109,6 @@
       border: 2px solid #e2e2e2;
       border-radius: 20px;
       background: #fafafa;
-      transition: 0.2s;
     }
     .otp-input:focus {
       border-color: #764ba2;
@@ -130,7 +116,6 @@
       background: white;
       box-shadow: 0 0 0 3px rgba(118,75,162,0.2);
     }
-
     button {
       width: 100%;
       background: linear-gradient(135deg, #667eea, #764ba2);
@@ -141,26 +126,20 @@
       font-weight: 600;
       color: white;
       cursor: pointer;
-      transition: 0.2s;
       margin-top: 16px;
-    }
-    button:hover {
-      transform: scale(0.98);
-      opacity: 0.9;
     }
     button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
-
     .timer {
       text-align: center;
       margin-top: 20px;
       font-size: 14px;
       color: #764ba2;
       font-weight: 500;
+      cursor: pointer;
     }
-
     .error-msg {
       color: #e53e3e;
       font-size: 13px;
@@ -168,7 +147,6 @@
       text-align: center;
       display: none;
     }
-
     .success-badge {
       text-align: center;
       background: #e8f5e9;
@@ -178,7 +156,6 @@
       margin-top: 20px;
       font-weight: 500;
     }
-
     footer {
       font-size: 12px;
       text-align: center;
@@ -193,24 +170,22 @@
     <div class="progress-fill" id="progressFill"></div>
   </div>
 
-  <!-- Шаг 1: ввод номера -->
   <div id="step1" class="step active">
     <h2>Вход по номеру</h2>
     <div class="sub">Мы отправим SMS с кодом</div>
     <div class="phone-input-wrapper">
       <span class="country-code">+7</span>
-      <input type="tel" id="phoneNumber" class="phone-input" placeholder="123 456 78 90" autocomplete="off">
+      <input type="tel" id="phoneNumber" class="phone-input" placeholder="707 123 45 67" autocomplete="off">
     </div>
     <button id="sendCodeBtn">Получить код</button>
     <div class="error-msg" id="phoneError"></div>
   </div>
 
-  <!-- Шаг 2: ввод кода -->
   <div id="step2" class="step">
     <h2>Код из SMS</h2>
     <div class="sub">Введите 4-значный код</div>
     <div class="otp-group">
-      <input type="text" maxlength="1" class="otp-input" id="o1" autocomplete="off">
+      <input type="text" maxlength="1" class="otp-input" id="o1">
       <input type="text" maxlength="1" class="otp-input" id="o2">
       <input type="text" maxlength="1" class="otp-input" id="o3">
       <input type="text" maxlength="1" class="otp-input" id="o4">
@@ -220,7 +195,6 @@
     <div class="error-msg" id="otpError"></div>
   </div>
 
-  <!-- Шаг 3: успех (редирект через 1.5с) -->
   <div id="step3" class="step">
     <div class="success-badge">✅ Успешная регистрация! Перенаправление...</div>
   </div>
@@ -229,7 +203,6 @@
 </div>
 
 <script>
-  // --- DOM элементы ---
   const step1 = document.getElementById('step1');
   const step2 = document.getElementById('step2');
   const step3 = document.getElementById('step3');
@@ -247,7 +220,6 @@
   let timerInterval = null;
   let canResend = false;
 
-  // --- Вспомогательные функции ---
   function showStep(step) {
     step1.classList.remove('active');
     step2.classList.remove('active');
@@ -255,18 +227,16 @@
     if (step === 1) step1.classList.add('active');
     if (step === 2) step2.classList.add('active');
     if (step === 3) step3.classList.add('active');
-    // прогресс бар
     if (step === 1) progressFill.style.width = '0%';
     if (step === 2) progressFill.style.width = '50%';
     if (step === 3) progressFill.style.width = '100%';
   }
 
- function getFullPhone() {
-  let raw = phoneInput.value.replace(/\D/g, '');
-  // Убираем всё, оставляем только 10 цифр после кода страны
-  let last10 = raw.slice(-10);
-  return '+7' + last10;
-}
+  function getFullPhone() {
+    let raw = phoneInput.value.replace(/\D/g, '');
+    let last10 = raw.slice(-10);
+    return '+7' + last10;
+  }
 
   function startTimer(seconds = 60) {
     if (timerInterval) clearInterval(timerInterval);
@@ -285,7 +255,6 @@
     }, 1000);
   }
 
-  // автофокус по полям OTP
   function handleOtp(index, event) {
     const input = otpInputs[index];
     if (event.inputType === 'deleteContentBackward' && index > 0 && input.value === '') {
@@ -293,18 +262,17 @@
     } else if (input.value.length === 1 && index < 3) {
       otpInputs[index+1].focus();
     }
-    let fullCode = otpInputs.map(i => i.value).join('');
+    const fullCode = otpInputs.map(i => i.value).join('');
     if (fullCode.length === 4) verifyBtn.click();
   }
   otpInputs.forEach((inp, idx) => {
     inp.addEventListener('input', (e) => handleOtp(idx, e));
   });
 
-  // --- Отправка номера на бэкенд /send-code ---
   async function sendCode() {
     const phone = getFullPhone();
-    if (!phoneInput.value.replace(/\D/g, '') || phoneInput.value.replace(/\D/g, '').length < 10) {
-      phoneError.innerText = 'Введите корректный номер (10 цифр после +7)';
+    if (!phoneInput.value.replace(/\D/g, '')) {
+      phoneError.innerText = 'Введите номер';
       phoneError.style.display = 'block';
       return;
     }
@@ -313,7 +281,7 @@
     sendBtn.innerText = 'Отправка...';
 
     try {
-      const response = await fetch('http://localhost:3000/send-code', {
+      const response = await fetch('/send-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone })
@@ -322,30 +290,28 @@
       if (data.ok) {
         showStep(2);
         startTimer(60);
-        // очищаем поля кода
         otpInputs.forEach(inp => inp.value = '');
         otpError.style.display = 'none';
         otpInputs[0].focus();
       } else {
-        phoneError.innerText = data.error || 'Ошибка отправки SMS';
+        phoneError.innerText = data.error || 'Ошибка отправки';
         phoneError.style.display = 'block';
         sendBtn.disabled = false;
         sendBtn.innerText = 'Получить код';
       }
     } catch (err) {
-      phoneError.innerText = 'Не удалось соединиться с сервером. Запущен ли бэкенд?';
+      phoneError.innerText = 'Ошибка соединения с сервером';
       phoneError.style.display = 'block';
       sendBtn.disabled = false;
       sendBtn.innerText = 'Получить код';
     }
   }
 
-  // --- Проверка кода на бэкенде /verify-code ---
   async function verifyCode() {
     const phone = getFullPhone();
     const code = otpInputs.map(i => i.value).join('');
     if (code.length !== 4) {
-      otpError.innerText = 'Введите 4 цифры кода';
+      otpError.innerText = 'Введите 4 цифры';
       otpError.style.display = 'block';
       return;
     }
@@ -354,7 +320,7 @@
     verifyBtn.innerText = 'Проверка...';
 
     try {
-      const response = await fetch('http://localhost:3000/verify-code', {
+      const response = await fetch('/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, code })
@@ -362,18 +328,17 @@
       const data = await response.json();
       if (data.ok) {
         showStep(3);
-        // Редирект на index.html через 1.5 секунды
         setTimeout(() => {
-          window.location.href = 'index.html';
+          window.location.href = '/dashboard.html';
         }, 1500);
       } else {
-        otpError.innerText = data.error || 'Неверный код. Попробуйте ещё раз.';
+        otpError.innerText = data.error || 'Неверный код';
         otpError.style.display = 'block';
         verifyBtn.disabled = false;
         verifyBtn.innerText = 'Подтвердить';
       }
     } catch (err) {
-      otpError.innerText = 'Ошибка связи с сервером';
+      otpError.innerText = 'Ошибка соединения с сервером';
       otpError.style.display = 'block';
       verifyBtn.disabled = false;
       verifyBtn.innerText = 'Подтвердить';
@@ -382,14 +347,9 @@
 
   sendBtn.addEventListener('click', sendCode);
   verifyBtn.addEventListener('click', verifyCode);
-  // повторная отправка по клику на таймер (если canResend)
   timerText.addEventListener('click', () => {
-    if (canResend) {
-      sendCode();
-    }
+    if (canResend) sendCode();
   });
-
-  // форматирование номера по мере ввода (только цифры)
   phoneInput.addEventListener('input', function(e) {
     let val = e.target.value.replace(/\D/g, '');
     if (val.length > 10) val = val.slice(0,10);
