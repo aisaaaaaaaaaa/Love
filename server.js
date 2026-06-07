@@ -2,25 +2,29 @@ require('dotenv').config();
 const express = require('express');
 const twilio = require('twilio');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
-app.use(cors()); // разрешаем запросы с фронтенда
+app.use(cors());
 app.use(express.json());
 
-// ---- ВСТАВЬ СВОИ ДАННЫЕ ИЗ TWILIO ----
-const accountSid = process.env.TWILIO_ACCOUNT_SID;     // из .env
-const authToken = process.env.TWILIO_AUTH_TOKEN;       // из .env
-const twilioPhone = process.env.TWILIO_PHONE_NUMBER;   // например '+1234567890'
+// Раздаём статические файлы из папки frontend
+app.use(express.static(path.join(__dirname, 'frontend')));
+
+// Данные из переменных окружения (настрой на Render)
+const accountSid = process.env.TWILIO_ACCOUNT_SID;
+const authToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
 if (!accountSid || !authToken || !twilioPhone) {
-  console.error('❌ Ошибка: добавь переменные в .env файл');
+  console.error('❌ Ошибка: добавь переменные окружения (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)');
   process.exit(1);
 }
 
 const client = twilio(accountSid, authToken);
-const codeStore = new Map(); // временное хранилище (для продакшена используй Redis/БД)
+const codeStore = new Map();
 
-// Эндпоинт 1: отправка SMS
+// API: отправка SMS
 app.post('/send-code', async (req, res) => {
   const { phone } = req.body;
   if (!phone || !phone.match(/^\+\d{10,15}$/)) {
@@ -44,28 +48,31 @@ app.post('/send-code', async (req, res) => {
   }
 });
 
-// Эндпоинт 2: проверка кода
+// API: проверка кода
 app.post('/verify-code', (req, res) => {
   const { phone, code } = req.body;
   const record = codeStore.get(phone);
   if (!record) {
     return res.status(400).json({ ok: false, error: 'Код не найден. Запросите новый.' });
   }
-  // проверка на истечение времени (10 минут)
   if (Date.now() - record.createdAt > 10 * 60 * 1000) {
     codeStore.delete(phone);
     return res.status(400).json({ ok: false, error: 'Код истёк. Запросите снова.' });
   }
   if (record.code === code) {
     codeStore.delete(phone);
-    // здесь можно выдать JWT-токен или создать сессию
     res.json({ ok: true, message: 'Успешная регистрация' });
   } else {
     res.status(400).json({ ok: false, error: 'Неверный код' });
   }
 });
 
+// Все остальные GET-запросы отдаём index.html (форму регистрации)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
+  console.log(`🚀 Сервер запущен на порту ${PORT}`);
 });
