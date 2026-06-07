@@ -8,27 +8,34 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Раздаём статические файлы из текущей папки (где лежит index.html, dashboard.html и т.д.)
+// Раздаём статические файлы из текущей папки (CSS, JS, изображения)
 app.use(express.static(__dirname));
 
-// Переменные окружения (добавь на Render)
+// Переменные окружения (Twilio данные – добавь на Render!)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
 
 if (!accountSid || !authToken || !twilioPhone) {
   console.error('❌ Ошибка: не хватает переменных окружения Twilio');
-  process.exit(1);
+  // Не завершаем процесс, чтобы сервер запустился хотя бы для статики
+  // Но SMS отправляться не будут.
+} else {
+  console.log('✅ Twilio переменные загружены');
 }
 
-const client = twilio(accountSid, authToken);
+const client = accountSid && authToken ? twilio(accountSid, authToken) : null;
 const codeStore = new Map();
 
-// Отправка SMS
+// Эндпоинт: отправка SMS
 app.post('/send-code', async (req, res) => {
   const { phone } = req.body;
   if (!phone || !phone.match(/^\+\d{10,15}$/)) {
     return res.status(400).json({ ok: false, error: 'Неверный формат номера' });
+  }
+
+  if (!client) {
+    return res.status(500).json({ ok: false, error: 'Сервер не настроен для SMS (нет Twilio ключей)' });
   }
 
   const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -48,7 +55,7 @@ app.post('/send-code', async (req, res) => {
   }
 });
 
-// Проверка кода
+// Эндпоинт: проверка кода
 app.post('/verify-code', (req, res) => {
   const { phone, code } = req.body;
   const record = codeStore.get(phone);
@@ -67,12 +74,14 @@ app.post('/verify-code', (req, res) => {
   }
 });
 
-// Все остальные GET-запросы отдаём index.html (форму регистрации)
-app.get('/*', (req, res) => {
+// ** ГЛАВНОЕ: Fallback для всех GET-запросов (отдаём index.html) **
+// Используем middleware без указания пути – он сработает, если предыдущие не обработали запрос
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
+  console.log(`📁 Статика раздаётся из ${__dirname}`);
 });
