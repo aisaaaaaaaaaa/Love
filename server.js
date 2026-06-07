@@ -8,10 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Раздаём статические файлы из папки frontend
-app.use(express.static(path.join(__dirname, 'frontend')));
+// Раздаём статические файлы из текущей папки (где лежит index.html, dashboard.html и т.д.)
+app.use(express.static(__dirname));
 
-// Переменные окружения (установи на Render)
+// Переменные окружения (добавь на Render)
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
@@ -67,9 +67,9 @@ app.post('/verify-code', (req, res) => {
   }
 });
 
-// Все GET-запросы (кроме API) отдаём index.html (форму регистрации)
-app.use((req, res) => {
-  res.status(200).sendFile(path.join(__dirname, 'frontend', 'index.html'));
+// Все остальные GET-запросы отдаём index.html (форму регистрации)
+app.get('/*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
