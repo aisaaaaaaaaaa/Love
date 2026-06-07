@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Регистрация по SMS</title>
+  <title>Вход · SMS или Google</title>
   <style>
     * {
       margin: 0;
@@ -132,6 +132,36 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+    .google-btn {
+      background: #4285F4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .google-btn img {
+      width: 22px;
+      height: 22px;
+    }
+    .divider {
+      text-align: center;
+      margin: 20px 0 10px;
+      color: #aaa;
+      font-size: 14px;
+      position: relative;
+    }
+    .divider::before,
+    .divider::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: #ddd;
+    }
+    .divider::before { left: 0; }
+    .divider::after { right: 0; }
     .timer {
       text-align: center;
       margin-top: 20px;
@@ -171,13 +201,23 @@
   </div>
 
   <div id="step1" class="step active">
-    <h2>Вход по номеру</h2>
-    <div class="sub">Мы отправим SMS с кодом</div>
+    <h2>Добро пожаловать</h2>
+    <div class="sub">Войдите удобным способом</div>
+
+    <!-- Кнопка входа через Google (Firebase) -->
+    <button id="googleBtn" class="google-btn">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+      Продолжить с Google
+    </button>
+
+    <div class="divider">или</div>
+
+    <!-- SMS форма -->
     <div class="phone-input-wrapper">
       <span class="country-code">+7</span>
       <input type="tel" id="phoneNumber" class="phone-input" placeholder="707 123 45 67" autocomplete="off">
     </div>
-    <button id="sendCodeBtn">Получить код</button>
+    <button id="sendCodeBtn">Получить код по SMS</button>
     <div class="error-msg" id="phoneError"></div>
   </div>
 
@@ -199,9 +239,60 @@
     <div class="success-badge">✅ Успешная регистрация! Перенаправление...</div>
   </div>
 
-  <footer>Данные защищены • SMS через Twilio</footer>
+  <footer>Данные защищены • SMS через Twilio • Вход через Google</footer>
 </div>
 
+<!-- Firebase SDK (модули) -->
+<script type="module">
+  // TODO: ЗАМЕНИ НА СВОИ ДАННЫЕ ИЗ КОНСОЛИ FIREBASE
+  const firebaseConfig = {
+    apiKey: "AIzaSyA949Thgea7kvkzj2FOBR7m5RgepmY0Qyc",
+    authDomain: "love-ec66a.firebaseapp.com",
+    projectId: "love-ec66a",
+    storageBucket: "love-ec66a.firebasestorage.app",
+    messagingSenderId: "392162813250",
+    appId: "1:392162813250:web:523b06bcd8d1beb93dd4db"
+  };
+
+  // Импорт Firebase модулей
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js';
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js';
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  // Функция входа через Google (будет вызвана при клике на кнопку)
+  window.googleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      // Сохраняем имя пользователя (опционально)
+      localStorage.setItem('userName', user.displayName || user.email);
+      // Редирект на dashboard
+      window.location.href = '/dashboard.html';
+    } catch (error) {
+      console.error('Ошибка входа через Google:', error);
+      alert('Не удалось войти через Google. Попробуйте позже.');
+    }
+  };
+
+  // Если пользователь уже авторизован (сессия Firebase активна) — перенаправляем сразу
+  onAuthStateChanged(auth, (user) => {
+    if (user && window.location.pathname !== '/dashboard.html') {
+      localStorage.setItem('userName', user.displayName || user.email);
+      window.location.href = '/dashboard.html';
+    }
+  });
+
+  // Привязываем обработчик к кнопке (если кнопка ещё не загружена, ждём)
+  document.addEventListener('DOMContentLoaded', () => {
+    const googleBtn = document.getElementById('googleBtn');
+    if (googleBtn) googleBtn.onclick = window.googleLogin;
+  });
+</script>
+
+<!-- Обычный JavaScript (логика SMS) -->
 <script>
   const step1 = document.getElementById('step1');
   const step2 = document.getElementById('step2');
