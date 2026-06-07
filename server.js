@@ -68,7 +68,7 @@ app.post('/verify-code', (req, res) => {
 });
 
 // Все GET-запросы (кроме API) отдаём index.html (форму регистрации)
-app.get('*', (req, res) => {
+app.get('/*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
